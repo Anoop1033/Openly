@@ -1,0 +1,21 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Gradle build output — root project and every module
+build/
+
+# Firebase config contains project-specific keys — each dev drops in their own
+app/google-services.json
+
+# Firebase Local Emulator Suite
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

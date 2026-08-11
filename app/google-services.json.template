@@ -1,0 +1,4 @@
+// Rename this file to google-services.json after downloading the real one from your
+// Firebase project (Project settings → General → Your apps → google-services.json).
+// The actual file is gitignored since it's project-specific and shouldn't be committed
+// verbatim to a shared repo (it's not a secret key, but it does identify your project).

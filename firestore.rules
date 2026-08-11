@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Any signed-in user can read open users' docs — required for the radar's
+    // bounding-box query. See README's "Privacy notes" for the tradeoff this implies.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    match /interests/{interestId} {
+      allow read: if isSignedIn() &&
+        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if isSignedIn() &&
+        request.resource.data.fromUid == request.auth.uid &&
+        request.resource.data.toUid != request.auth.uid;
+      allow update: if isSignedIn() &&
+        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /matches/{matchId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.uids;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.uids;
+
+      // Participants may refresh only the denormalised last-message preview that drives the chat
+      // list and unread badge. Membership and creation time stay immutable, so nobody can edit
+      // themselves into someone else's match, and you can only attribute a message to yourself.
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.uids
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['lastMessageText', 'lastMessageSenderUid', 'lastMessageAtMillis'])
+        && request.resource.data.lastMessageSenderUid == request.auth.uid;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.uids;
+        allow create: if isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.uids &&
+          request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
