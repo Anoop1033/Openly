@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Chat attachments. The participant check mirrors firestore.rules: only the two people in a match
+// may read or write anything under that match's folder, so an attachment is exactly as private as
+// the thread it belongs to.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chat/{matchId}/{fileName} {
+      function isParticipant() {
+        return request.auth != null &&
+          request.auth.uid in firestore.get(/databases/(default)/documents/matches/$(matchId)).data.uids;
+      }
+
+      allow read: if isParticipant();
+
+      // Uploads are capped and content-type pinned so this can't be used as free general-purpose
+      // file hosting. 10 MB comfortably covers a downscaled photo or a few minutes of AAC.
+      allow create: if isParticipant()
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType.matches('audio/.*'));
+
+      // Attachments are immutable once sent — "delete for everyone" only clears the Firestore
+      // pointer. Left deliberately: see the README note about orphaned attachments.
+      allow update, delete: if false;
+    }
+  }
+}
