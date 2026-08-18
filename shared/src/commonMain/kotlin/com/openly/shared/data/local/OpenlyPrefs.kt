@@ -55,4 +55,14 @@ class OpenlyPrefs(private val dataStore: DataStore<Preferences>) {
             if (upToMillis > existing) prefs[lastReadKey(matchId)] = upToMillis
         }
     }
+
+    /**
+     * Wipes every local key. Account deletion needs the next launch to look exactly like a first
+     * install — leaving [onboardedKey] set would drop a brand-new anonymous user straight onto the
+     * radar with no profile, and the stale `last_read_*` entries would badge chats that no longer
+     * exist.
+     */
+    suspend fun clear() {
+        dataStore.edit { it.clear() }
+    }
 }

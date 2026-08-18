@@ -4,6 +4,7 @@ import com.openly.shared.data.local.OpenlyPrefs
 import com.openly.shared.data.local.createOpenlyDataStore
 import com.openly.shared.data.location.LocationPermissionRequester
 import com.openly.shared.data.location.LocationTracker
+import com.openly.shared.data.repository.AccountRepository
 import com.openly.shared.data.repository.AuthRepository
 import com.openly.shared.data.repository.ChatRepository
 import com.openly.shared.data.repository.InterestRepository
@@ -41,6 +42,9 @@ class AppContainer(
     private val storage by lazy { Firebase.storage }
 
     val authRepository: AuthRepository by lazy { AuthRepository(auth) }
+    val accountRepository: AccountRepository by lazy {
+        AccountRepository(firestore, authRepository, prefs)
+    }
     val profileRepository: ProfileRepository by lazy { ProfileRepository(firestore) }
     val radarRepository: RadarRepository by lazy { RadarRepository(firestore) }
     val interestRepository: InterestRepository by lazy { InterestRepository(firestore) }

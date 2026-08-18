@@ -78,13 +78,16 @@ you have been. Typing indicators expire in seconds.
 
 - **Stop sharing location:** switch yourself to not-open, or revoke the location permission in
   Android settings. The app works for reading existing chats without it.
-- **Delete your account and data:** [DESCRIBE THE IN-APP PATH, e.g. "Settings → Delete account"].
-  This removes your profile, your matches, and your messages.
+- **Delete your account and data:** **Settings → Delete account**. This removes your profile, your
+  interests, your matches, every message you have sent, and any photos or voice notes attached to
+  them. It also deletes the anonymous account itself. Because Openly has no password, this cannot
+  be undone and the account cannot be recovered.
 - **Turn off notifications:** revoke the notification permission in Android settings.
 
-> **Play requirement:** Google requires apps with accounts to offer account deletion, including a
-> web-accessible route. If the in-app path above does not exist yet, build it before submitting —
-> this is a common rejection reason.
+> **Still to do before submitting:** Google also expects a **web-accessible** deletion route, for
+> people who have already uninstalled and so cannot reach the in-app button. A simple form or a
+> published email address that you action manually satisfies this — but it has to exist and be
+> named in the listing.
 
 ## Security
 

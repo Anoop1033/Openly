@@ -53,11 +53,23 @@ Copy `keystore.properties.template` to `keystore.properties` and fill in the pas
 gitignored and exist nowhere else. Losing them means the listing can never be updated — the only
 remedy is republishing under a new package name, stranding every existing install.
 
-### 4. Build an account-deletion path
+### 4. Publish a web-accessible deletion route
 
-Play requires apps with user accounts to let users delete their account and data, and to offer a
-web-accessible route as well as an in-app one. `SettingsScreen` has no delete flow today. This is a
-routine rejection reason and worth handling before the first submission rather than after.
+The in-app path exists — **Settings → Delete account**, wired to `AccountRepository`. Play also
+requires a route reachable **without installing the app**, for people who have already uninstalled.
+A static form, or simply a published email address that you action by hand, satisfies this; it just
+has to exist and be linked from the store listing.
+
+Note that the cascade is split deliberately. The client deletes what belongs to one person — the
+profile, the interest records, the anonymous auth account — so the user disappears from everyone's
+radar immediately. Matches, messages and attachments are deleted by `purgeDeletedAccount` in
+`functions/index.js`, under the admin SDK. That split exists because the alternative is security
+rules that let *either* participant delete a shared thread, which would let anyone wipe someone
+else's history on demand.
+
+**Consequence: if you never deploy Functions (blocker 2), messages and attachments are never
+erased.** The visible part of deletion works, but the promise made in `PRIVACY.md` would not be
+fully kept. Deploy the function before accepting real users.
 
 ### 5. Host the privacy policy
 

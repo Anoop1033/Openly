@@ -74,8 +74,15 @@ fun AppRoot(container: AppContainer, onSignedIn: suspend (String) -> Unit = {}) 
     var signInError by remember { mutableStateOf<String?>(null) }
     var retryToken by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(retryToken) {
+    // Deleting the account invalidates the uid held in [selfUid]. Without this the tree would keep
+    // rendering against a user that no longer exists and every write would fail; re-keying the
+    // effect drops that uid and signs in fresh, which lands the user back on onboarding as a new
+    // anonymous account.
+    val sessionGeneration by container.authRepository.sessionGeneration.collectAsState()
+
+    LaunchedEffect(retryToken, sessionGeneration) {
         signInError = null
+        selfUid = null
         try {
             val uid = container.authRepository.ensureSignedIn()
             selfUid = uid

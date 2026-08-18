@@ -6,15 +6,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,11 +62,16 @@ fun SettingsScreen(container: AppContainer, selfUid: String) {
 
     var sliderPosition by remember(radiusMeters) { mutableStateOf(radiusMeters.toFloat()) }
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+
     Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -134,6 +147,87 @@ fun SettingsScreen(container: AppContainer, selfUid: String) {
                     )
                 }
             }
+
+            // Google Play requires any app with accounts to offer in-app deletion. Kept visually
+            // separate and behind a confirmation because it is irreversible and, with anonymous
+            // sign-in, there is no way to recover the account afterwards — there are no credentials
+            // to sign back in with.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Delete account",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        "Permanently removes your profile, your matches and every message you've " +
+                            "sent. Because Openly doesn't use passwords, this can't be undone and " +
+                            "the account can't be recovered.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    deleteError?.let { message ->
+                        Text(
+                            "Couldn't delete your account: $message",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    OutlinedButton(
+                        enabled = !deleting,
+                        onClick = {
+                            deleteError = null
+                            showDeleteDialog = true
+                        }
+                    ) {
+                        if (deleting) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Delete my account")
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete your account?") },
+            text = {
+                Text(
+                    "Your profile, matches, messages and photos will be deleted. This is permanent " +
+                        "— there's no password to sign back in with, so the account can't be restored."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        deleting = true
+                        scope.launch {
+                            // This scope dies as soon as deletion succeeds — signing the user out
+                            // tears down the whole signed-in tree. AccountRepository is ordered so
+                            // that the call which triggers that is the last one, with nothing left
+                            // to abandon behind it.
+                            runCatching { container.accountRepository.deleteAccount(selfUid) }
+                                .onFailure { deleteError = it.message ?: "Unknown error" }
+                            deleting = false
+                        }
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }

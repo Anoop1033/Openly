@@ -14,7 +14,10 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSignedIn();
       allow create, update: if isOwner(uid);
-      allow delete: if false;
+      // Only ever your own, and only as part of account deletion. This one is safe to hand the
+      // client because the document belongs to exactly one person — unlike a match, which is
+      // shared and stays server-only (see the purge function).
+      allow delete: if isOwner(uid);
     }
 
     match /interests/{interestId} {
@@ -25,7 +28,19 @@ service cloud.firestore {
         request.resource.data.toUid != request.auth.uid;
       allow update: if isSignedIn() &&
         (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
-      allow delete: if false;
+      // Either party may remove the record, since it describes a relationship between the two of
+      // them and carries no history worth preserving once one of them is gone.
+      allow delete: if isSignedIn() &&
+        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+    }
+
+    // A one-way signal to the purge function in functions/index.js; the cascade itself runs there
+    // under the admin SDK. Not writable after the fact, so a request cannot be retargeted at
+    // somebody else's uid once written, and not deletable by the client so nobody can cancel a
+    // purge halfway through and leave the data in a half-erased state.
+    match /deletionRequests/{uid} {
+      allow read, create: if isOwner(uid);
+      allow update, delete: if false;
     }
 
     match /matches/{matchId} {
