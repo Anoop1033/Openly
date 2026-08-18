@@ -1,5 +1,7 @@
 package com.openly.shared.data.location
 
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.useContents
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,6 +21,9 @@ import platform.darwin.NSObject
  * machine this was written on does not have. Treat it as a first draft to verify on a Mac.
  * Info.plist must declare NSLocationWhenInUseUsageDescription or CoreLocation stays silent.
  */
+// CLLocationCoordinate2D is a C struct returned by value, so reading it goes through useContents,
+// which is part of the experimental foreign-API surface.
+@OptIn(ExperimentalForeignApi::class)
 actual class LocationTracker {
 
     private val manager = CLLocationManager()

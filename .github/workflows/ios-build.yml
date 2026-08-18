@@ -70,9 +70,19 @@ jobs:
           ./gradlew :shared:compileKotlinIosSimulatorArm64 :shared:compileKotlinIosArm64 \
             --stacktrace 2>&1 | tee /tmp/ios-build.log
 
-      # Job logs need an authenticated token to download, but the run summary is exposed on the
-      # check run, which is public for a public repo. Mirroring the errors here is what makes this
-      # readable from a Windows machine with no gh CLI and no credentials.
+      # Downloading job logs needs an authenticated token, and the run summary turns out NOT to be
+      # exposed on the check run. Annotations are the one channel that is public on a public repo,
+      # so the errors are emitted as a single ::error:: -- one annotation rather than one per line,
+      # because GitHub caps how many it keeps per step. A workflow command has to occupy a single
+      # line, hence the percent-escaping ('%' first, or it would corrupt the escapes that follow).
+      - name: Publish compile errors as an annotation
+        if: failure()
+        run: |
+          errors=$(grep -E '^e: |^FAILURE|Unresolved reference|error:' /tmp/ios-build.log | head -100 || true)
+          if [ -z "$errors" ]; then errors=$(tail -80 /tmp/ios-build.log); fi
+          escaped=$(printf '%s' "$errors" | sed -e 's/%/%25/g' | sed -e ':a' -e 'N' -e '$!ba' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+          echo "::error title=Kotlin/Native compile errors::${escaped}"
+
       - name: Publish compile errors to run summary
         if: failure()
         run: |
