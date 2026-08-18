@@ -65,16 +65,41 @@ jobs:
       # Compiles commonMain + iosMain for the simulator and for real devices. arm64
       # is included because device-only API availability differences do surface here.
       - name: Compile iOS targets
-        run: ./gradlew :shared:compileKotlinIosSimulatorArm64 :shared:compileKotlinIosArm64 --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :shared:compileKotlinIosSimulatorArm64 :shared:compileKotlinIosArm64 \
+            --stacktrace 2>&1 | tee /tmp/ios-build.log
+
+      # Job logs need an authenticated token to download, but the run summary is exposed on the
+      # check run, which is public for a public repo. Mirroring the errors here is what makes this
+      # readable from a Windows machine with no gh CLI and no credentials.
+      - name: Publish compile errors to run summary
+        if: failure()
+        run: |
+          {
+            echo '## Kotlin/Native compile errors'
+            echo
+            echo '```'
+            grep -E '^e: |^FAILURE|^Caused by:|Unresolved reference|error:' /tmp/ios-build.log \
+              | head -300 || echo '(no lines matched -- see tail below)'
+            echo '```'
+            echo
+            echo '<details><summary>Last 120 lines</summary>'
+            echo
+            echo '```'
+            tail -120 /tmp/ios-build.log
+            echo '```'
+            echo
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run common tests
         run: ./gradlew :shared:iosSimulatorArm64Test --stacktrace
 
-      # Opt-in only. Prints an ssh command in the log; connect from Windows to get a
-      # real macOS shell and iterate on compile errors without pushing a commit for
-      # each attempt. The job holds the runner until you exit or it times out.
+      # Strictly opt-in: NOT on failure. Holding the runner open on every red build wastes 6 hours
+      # of it and delays the next run. limit-access-to-actor is off because it requires an SSH key
+      # on the GitHub profile, which this account has none of -- without it tmate prints a
+      # password-based ssh command in the log instead, which is what you want here.
       - name: Debug shell
-        if: ${{ failure() || inputs.debug_shell }}
+        if: ${{ inputs.debug_shell }}
         uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true

@@ -7,9 +7,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Backup is off deliberately. Sign-in is anonymous, so the Firebase credential in app storage
+         *is* the account: restoring it onto a second device leaves two installs sharing one uid,
+         which breaks presence and makes the radar show the user to themselves. Firebase also
+         advises against restoring cached auth state, since the token may be long expired. -->
     <application
         android:name=".OpenlyApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
